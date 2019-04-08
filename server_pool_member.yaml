@@ -1,0 +1,74 @@
+heat_template_version: 2014-10-16
+
+description: A template to deploy a load balanced web server
+
+parameters:
+
+  netID:
+    type: string
+    description: Network ID to use for the instance.
+
+  image:
+    type: string
+    description: Image utilisee pour les serveurs
+    constraints:
+      - custom_constraint: glance.image
+
+  flavor:
+    type: string
+    description: Flavor utilisee par les serveurs
+    constraints:
+      - custom_constraint: nova.flavor
+
+  subnet_id:
+    type: string
+    description: Sous-reseau dans lequel le load balancer sera situe
+    
+  pool:
+    type: string
+    description: blablabla
+    
+  name: 
+    type: string
+    description: blablabla
+
+    # Vous pouvez ajouter d'autres paramètres
+    # Il faut bien définir les descriptions, les valeurs par default et les contraintes
+
+resources:
+
+  keyPair:
+    type: OS::Nova::KeyPair
+    properties:
+      save_private_key: true
+      name: key
+
+  server:
+    type: OS::Nova::Server
+    properties:
+      name: { get_param: name }
+      image: { get_param: image } #xenial-server-cloudimg-amd64-disk1
+      flavor: { get_param: flavor } #2048-10-1-1
+      key_name: { get_resource: keyPair }
+      networks:
+        - network: { get_param: netID }
+      user_data: |
+        #!/bin/bash
+        apt-get update
+        apt-get --assume-yes install python
+        wget https://raw.githubusercontent.com/houssemmh/INF8480-TP3/master/server.py
+        python server.py
+                 
+           
+  poolmember:
+    type: OS::Neutron::LBaaS::PoolMember
+    properties:
+      address: {get_attr: [server, accessIPv4]}
+      pool: { get_param: pool }
+      protocol_port: 80
+      subnet: { get_param: subnet_id }
+
+outputs:
+  pool_ip_address:
+    value: 0
+    description: dfhfhkfjk

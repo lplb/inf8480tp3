@@ -1,0 +1,105 @@
+heat_template_version: 2014-10-16
+
+description: A template to deploy a load balanced web server
+
+parameters:
+
+  netID:
+    type: string
+    description: Network ID to use for the instance.
+
+  image:
+    type: string
+    description: Image utilisee pour les serveurs
+    constraints:
+      - custom_constraint: glance.image
+
+  flavor:
+    type: string
+    description: Flavor utilisee par les serveurs
+    constraints:
+      - custom_constraint: nova.flavor
+
+  subnet_id:
+    type: string
+    description: Sous-reseau dans lequel le load balancer sera situe
+
+    # Vous pouvez ajouter d'autres paramètres
+    # Il faut bien définir les descriptions, les valeurs par default et les contraintes
+
+resources:
+
+  keyPair:
+    type: OS::Nova::KeyPair
+    properties:
+      save_private_key: true
+      name: key
+
+  server_nodes:
+      type: OS::Heat::ResourceGroup
+      properties:
+        count: 3
+        resource_def:
+          type: https://github.com/lplb/inf8480tp3/blob/master/server_pool_member.yaml
+#          type: OS::Nova::Server
+#          properties:
+#            name: server%index%
+#            image: { get_param: image } #xenial-server-cloudimg-amd64-disk1
+#            flavor: { get_param: flavor } #2048-10-1-1
+#            key_name: { get_resource: keyPair }
+#            networks:
+#              - network: { get_param: netID }
+#            user_data: |
+#                #!/bin/bash
+#                 apt-get update
+#                 apt-get --assume-yes install python
+#                 wget https://raw.githubusercontent.com/houssemmh/INF8480-TP3/master/server.py
+#                 python server.py
+                 
+           
+#  pool_members:
+#    type: OS::Heat::ResourceGroup
+#    properties:
+#      count: 3
+#     resource_def:
+#        type: OS::Neutron::LBaaS::PoolMember
+#        properties:
+#          address: {get_attr: [server_nodes, resources.%index%, accessIPv4]}
+#          pool: { get_resource: mypool }
+#          protocol_port: 80
+#          subnet: { get_param: subnet_id }
+
+
+  mylistener:
+      type: OS::Neutron::LBaaS::Listener
+      properties:
+        protocol: HTTP
+        protocol_port: 80
+        loadbalancer: { get_resource: myloadbalancer }
+
+  mypool:
+      type: OS::Neutron::LBaaS::Pool
+      properties:
+        lb_algorithm: ROUND_ROBIN
+        protocol: HTTP
+        listener: { get_resource: mylistener }
+
+  myloadbalancer:
+      type: OS::Neutron::LBaaS::LoadBalancer
+      properties:
+        vip_subnet: { get_param: subnet_id }
+
+  mymonitor:
+      type: OS::Neutron::LBaaS::HealthMonitor
+      properties:
+        pool: { get_resource: mypool }
+        type: PING
+        delay: 15
+        max_retries: 2
+        timeout: 5
+
+
+outputs:
+  pool_ip_address:
+    value: {get_attr: [mypool, show]} #vip, address]}
+    description: The IP address of the load balancing pool

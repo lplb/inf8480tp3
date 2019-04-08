@@ -1,0 +1,44 @@
+heat_template_version: 2015-10-15
+description: Launch a basic instance with Ubuntu Xenial image using the
+             ``2048-10-1-1`` flavor, ``daniel`` key,  and one network.
+
+parameters:
+  NetID:
+    type: string
+    description: Network ID to use for the instance.
+
+resources:
+  keyPair:
+    type: OS::Nova::KeyPair
+    properties:
+      save_private_key: true
+      name: key
+  server:
+    type: OS::Nova::Server
+    properties:
+      image: xenial-server-cloudimg-amd64-disk1
+      flavor: 2048-10-1-1
+      key_name: { get_resource: keyPair }
+      networks:
+      - network: { get_param: NetID }
+      user_data: |
+           #!/bin/bash
+           apt-get update
+           apt-get --assume-yes install python
+           wget https://raw.githubusercontent.com/houssemmh/INF8480-TP3/master/server.py
+           python server.py
+
+outputs:
+  instance_name:
+    description: Name of the instance.
+    value: { get_attr: [ server, name ] }
+  instance_ip:
+    description: IP address of the instance.
+    value: { get_attr: [ server, first_address ] }
+  private_key:
+    description: Private key
+    value: { get_attr: [ keyPair, private_key ] }
+  public_key:
+    description: Public key
+    value: { get_attr: [ keyPair, public_key ] }
+
